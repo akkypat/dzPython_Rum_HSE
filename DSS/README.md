@@ -2,7 +2,7 @@
 
 1. ## 📊 Исходные данные
 
-**Файл:** `SampleSuperstore.csv` (9,994 записей)
+**Файл:** `SampleSuperstore.csv`
 
 **Поля:**
 - `Ship Mode`, `Segment`, `Country`, `City`, `State`, `Postal Code`
