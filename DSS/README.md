@@ -21,7 +21,7 @@
 - 'Region_BK', 'Region_HK',
 
 3. ## 🗃️ Схема Data Vault 2.0
-![Схема БД mermaid](https://github.com/akkypat/dzPython_Rum_HSE/blob/main/DSS/mermaid-diagram-RumI.png)
+![Схема БД mermaid](https://raw.githubusercontent.com/akkypat/dzPython_Rum_HSE/refs/heads/main/DSS/mermaid-diagram-RumI.png)
 
 ### Хабы (7 таблиц)
 - `H_CUSTOMER` - клиенты
