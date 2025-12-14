@@ -1,336 +1,354 @@
--- HUBS
+-- Hubs
 
--- HUB_CUSTOMER
-INSERT INTO memory.dds.hub_customer
-SELECT DISTINCT
-    CAST(TO_HEX(MD5(TO_UTF8(CAST(custkey AS VARCHAR)))) AS VARCHAR) AS customer_hk,
-    custkey,
-    CURRENT_TIMESTAMP AS load_date,
-    'tpch.tiny.customer' AS record_source
-FROM tpch.tiny.customer;
+-- H_CUSTOMER
+insert into memory.dds.hub_customer
+select distinct
+    cast(to_hex(md5(to_utf8(cast(custkey as varchar)))) as varchar) as customer_hk,
+    custkey as customer_id,
+    current_timestamp as load_date,
+    'tpch.tiny.customer' as record_source
+from tpch.tiny.customer;
 
--- HUB_ORDER
-INSERT INTO memory.dds.hub_order
-SELECT DISTINCT
-    CAST(TO_HEX(MD5(TO_UTF8(CAST(orderkey AS VARCHAR)))) AS VARCHAR) AS order_hk,
-    orderkey,
-    CURRENT_TIMESTAMP AS load_date,
-    'tpch.tiny.orders' AS record_source
-FROM tpch.tiny.orders;
+-- H_ORDERS
+insert into memory.dds.hub_order
+select distinct
+    cast(to_hex(md5(to_utf8(cast(orderkey as varchar)))) as varchar) as order_hk,
+    orderkey as order_key,
+    current_timestamp as load_date,
+    'tpch.tiny.orders' as record_source
+from tpch.tiny.orders;
 
--- HUB_PART
-INSERT INTO memory.dds.hub_part
-SELECT DISTINCT
-    CAST(TO_HEX(MD5(TO_UTF8(CAST(partkey AS VARCHAR)))) AS VARCHAR) AS part_hk,
-    partkey,
-    CURRENT_TIMESTAMP AS load_date,
-    'tpch.tiny.part' AS record_source
-FROM tpch.tiny.part;
+-- H_PART
+insert into memory.dds.hub_part
+select distinct
+    cast(to_hex(md5(to_utf8(cast(partkey as varchar)))) as varchar) as part_hk,
+    partkey as part_key,
+    current_timestamp as load_date,
+    'tpch.tiny.part' as record_source
+from tpch.tiny.part;
 
--- HUB_SUPPLIER
-INSERT INTO memory.dds.hub_supplier
-SELECT DISTINCT
-    CAST(TO_HEX(MD5(TO_UTF8(CAST(suppkey AS VARCHAR)))) AS VARCHAR) AS supplier_hk,
-    suppkey,
-    CURRENT_TIMESTAMP AS load_date,
-    'tpch.tiny.supplier' AS record_source
-FROM tpch.tiny.supplier;
+-- H_SUPPLIER
+insert into memory.dds.hub_supplier
+select distinct
+    cast(to_hex(md5(to_utf8(cast(suppkey as varchar)))) as varchar) as supplier_hk,
+    suppkey as supplier_key,
+    current_timestamp as load_date,
+    'tpch.tiny.supplier' as record_source
+from tpch.tiny.supplier;
 
--- HUB_NATION
-INSERT INTO memory.dds.hub_nation
-SELECT DISTINCT
-    CAST(TO_HEX(MD5(TO_UTF8(CAST(nationkey AS VARCHAR)))) AS VARCHAR) AS nation_hk,
-    nationkey,
-    CURRENT_TIMESTAMP AS load_date,
-    'tpch.tiny.nation' AS record_source
-FROM tpch.tiny.nation;
+-- H_PARTSUPP
+insert into memory.dds.hub_partsupp
+select distinct
+    cast(to_hex(md5(to_utf8(cast(partkey as varchar) || '|' || cast(suppkey as varchar)))) as varchar) as partsupp_hk,
+    partkey as part_key,
+    suppkey as supp_key,
+    current_timestamp as load_date,
+    'tpch.tiny.partsupp' as record_source
+from tpch.tiny.partsupp;
 
--- HUB_REGION
-INSERT INTO memory.dds.hub_region
-SELECT DISTINCT
-    CAST(TO_HEX(MD5(TO_UTF8(CAST(regionkey AS VARCHAR)))) AS VARCHAR) AS region_hk,
-    regionkey,
-    CURRENT_TIMESTAMP AS load_date,
-    'tpch.tiny.region' AS record_source
-FROM tpch.tiny.region;
+--H_LINEITEM
+insert into memory.dds.hub_lineitem
+select distinct
+    cast(to_hex(md5(to_utf8(cast(orderkey as varchar) || '|' || cast(linenumber as varchar)))) as varchar) as lineitem_hk,
+    orderkey as order_key,
+    linenumber as line_number,
+    current_timestamp as load_date,
+    'tpch.tiny.lineitem' as record_source
+from tpch.tiny.lineitem;
 
--- HUB_LINEITEM
-INSERT INTO memory.dds.hub_lineitem
-SELECT DISTINCT
-    CAST(TO_HEX(MD5(TO_UTF8(CAST(orderkey AS VARCHAR) || '|' || CAST(linenumber AS VARCHAR)))) AS VARCHAR) AS lineitem_hk,
-    orderkey,
-    linenumber,
-    CURRENT_TIMESTAMP AS load_date,
-    'tpch.tiny.lineitem' AS record_source
-FROM tpch.tiny.lineitem;
+-- H_NATION
+insert into memory.dds.hub_nation
+select distinct
+    cast(to_hex(md5(to_utf8(cast(nationkey as varchar)))) as varchar) as nation_hk,
+    nationkey as nation_key,
+    current_timestamp as load_date,
+    'tpch.tiny.nation' as record_source
+from tpch.tiny.nation;
 
--- HUB_PARTSUPP
-INSERT INTO memory.dds.hub_partsupp
-SELECT DISTINCT
-    CAST(TO_HEX(MD5(TO_UTF8(CAST(partkey AS VARCHAR) || '|' || CAST(suppkey AS VARCHAR)))) AS VARCHAR) AS partsupp_hk,
-    partkey,
-    suppkey,
-    CURRENT_TIMESTAMP AS load_date,
-    'tpch.tiny.partsupp' AS record_source
-FROM tpch.tiny.partsupp;
+-- H_REGION
+insert into memory.dds.hub_region
+select distinct
+    cast(to_hex(md5(to_utf8(cast(regionkey as varchar)))) as varchar) as region_hk,
+    regionkey as region_key,
+    current_timestamp as load_date,
+    'tpch.tiny.region' as record_source
+from tpch.tiny.region;
 
--- LINKS (оптимизированные, по бизнес-ключам)
+-- Links
 
--- LINK_ORDER_CUSTOMER
-INSERT INTO memory.dds.link_order_customer
-SELECT DISTINCT
-    CAST(TO_HEX(MD5(TO_UTF8(
-        CAST(o.custkey AS VARCHAR) || '|' || CAST(o.orderkey AS VARCHAR)
-    ))) AS VARCHAR) AS order_customer_hk,
-    CAST(TO_HEX(MD5(TO_UTF8(CAST(o.custkey AS VARCHAR)))) AS VARCHAR) AS customer_hk,
-    CAST(TO_HEX(MD5(TO_UTF8(CAST(o.orderkey AS VARCHAR)))) AS VARCHAR) AS order_hk,
-    CURRENT_TIMESTAMP AS load_date,
-    'tpch.tiny.orders' AS record_source
-FROM tpch.tiny.orders o;
+-- L_CUSTOMER_ORDER
+insert into memory.dds.link_customer_order
+select distinct
+    cast(to_hex(md5(to_utf8(
+        cast(to_hex(md5(to_utf8(cast(custkey as varchar)))) as varchar) || '|' ||
+        cast(to_hex(md5(to_utf8(cast(orderkey as varchar)))) as varchar)
+    ))) as varchar) as customer_order_hk,
+    cast(to_hex(md5(to_utf8(cast(custkey as varchar)))) as varchar) as customer_hk,
+    cast(to_hex(md5(to_utf8(cast(orderkey as varchar)))) as varchar) as order_hk,
+    current_timestamp as load_date,
+    'tpch.tiny.orders' as record_source
+from tpch.tiny.orders;
 
--- LINK_LINEITEM_PARTSUPP
-INSERT INTO memory.dds.link_lineitem_partsupp
-SELECT DISTINCT
-    CAST(TO_HEX(MD5(TO_UTF8(
-        CAST(l.orderkey AS VARCHAR) || '|' || CAST(l.linenumber AS VARCHAR) || '|' ||
-        CAST(l.partkey AS VARCHAR) || '|' || CAST(l.suppkey AS VARCHAR)
-    ))) AS VARCHAR) AS lineitem_partsupp_hk,
-    CAST(TO_HEX(MD5(TO_UTF8(CAST(l.orderkey AS VARCHAR) || '|' || CAST(l.linenumber AS VARCHAR)))) AS VARCHAR) AS lineitem_hk,
-    CAST(TO_HEX(MD5(TO_UTF8(CAST(l.partkey AS VARCHAR) || '|' || CAST(l.suppkey AS VARCHAR)))) AS VARCHAR) AS partsupp_hk,
-    CURRENT_TIMESTAMP AS load_date,
-    'tpch.tiny.lineitem' AS record_source
-FROM tpch.tiny.lineitem l;
+-- L_ORDER_LINEITEM
+insert into memory.dds.link_order_lineitem
+select distinct
+    cast(to_hex(md5(to_utf8(
+        cast(to_hex(md5(to_utf8(cast(orderkey as varchar)))) as varchar) || '|' ||
+        cast(to_hex(md5(to_utf8(cast(orderkey as varchar) || '|' || cast(linenumber as varchar)))) as varchar)
+    ))) as varchar) as order_lineitem_hk,
+    cast(to_hex(md5(to_utf8(cast(orderkey as varchar)))) as varchar) as order_hk,
+    cast(to_hex(md5(to_utf8(cast(orderkey as varchar) || '|' || cast(linenumber as varchar)))) as varchar) as lineitem_hk,
+    current_timestamp as load_date,
+    'tpch.tiny.lineitem' as record_source
+from tpch.tiny.lineitem;
 
--- LINK_PARTSUPP_PART
-INSERT INTO memory.dds.link_partsupp_part
-SELECT DISTINCT
-    CAST(TO_HEX(MD5(TO_UTF8(
-        CAST(ps.partkey AS VARCHAR) || '|' || CAST(ps.suppkey AS VARCHAR) || '|' ||
-        CAST(ps.partkey AS VARCHAR)
-    ))) AS VARCHAR) AS partsupp_part_hk,
-    CAST(TO_HEX(MD5(TO_UTF8(CAST(ps.partkey AS VARCHAR) || '|' || CAST(ps.suppkey AS VARCHAR)))) AS VARCHAR) AS partsupp_hk,
-    CAST(TO_HEX(MD5(TO_UTF8(CAST(ps.partkey AS VARCHAR)))) AS VARCHAR) AS part_hk,
-    CURRENT_TIMESTAMP AS load_date,
-    'tpch.tiny.partsupp' AS record_source
-FROM tpch.tiny.partsupp ps;
+-- L_LINEITEM_PART
+insert into memory.dds.link_lineitem_part
+select distinct
+    cast(to_hex(md5(to_utf8(
+        cast(to_hex(md5(to_utf8(cast(orderkey as varchar) || '|' || cast(linenumber as varchar)))) as varchar) || '|' ||
+        cast(to_hex(md5(to_utf8(cast(partkey as varchar)))) as varchar)
+    ))) as varchar) as lineitem_part_hk,
+    cast(to_hex(md5(to_utf8(cast(orderkey as varchar) || '|' || cast(linenumber as varchar)))) as varchar) as lineitem_hk,
+    cast(to_hex(md5(to_utf8(cast(partkey as varchar)))) as varchar) as part_hk,
+    current_timestamp as load_date,
+    'tpch.tiny.lineitem' as record_source
+from tpch.tiny.lineitem;
 
--- LINK_PARTSUPP_SUPPLIER
-INSERT INTO memory.dds.link_partsupp_supplier
-SELECT DISTINCT
-    CAST(TO_HEX(MD5(TO_UTF8(
-        CAST(ps.partkey AS VARCHAR) || '|' || CAST(ps.suppkey AS VARCHAR) || '|' ||
-        CAST(ps.suppkey AS VARCHAR)
-    ))) AS VARCHAR) AS partsupp_supplier_hk,
-    CAST(TO_HEX(MD5(TO_UTF8(CAST(ps.partkey AS VARCHAR) || '|' || CAST(ps.suppkey AS VARCHAR)))) AS VARCHAR) AS partsupp_hk,
-    CAST(TO_HEX(MD5(TO_UTF8(CAST(ps.suppkey AS VARCHAR)))) AS VARCHAR) AS supplier_hk,
-    CURRENT_TIMESTAMP AS load_date,
-    'tpch.tiny.partsupp' AS record_source
-FROM tpch.tiny.partsupp ps;
+-- L_LINEITEM_SPPLIER
+insert into memory.dds.link_lineitem_supplier
+select distinct
+    cast(to_hex(md5(to_utf8(
+        cast(to_hex(md5(to_utf8(cast(orderkey as varchar) || '|' || cast(linenumber as varchar)))) as varchar) || '|' ||
+        cast(to_hex(md5(to_utf8(cast(suppkey as varchar)))) as varchar)
+    ))) as varchar) as lineitem_supplier_hk,
+    cast(to_hex(md5(to_utf8(cast(orderkey as varchar) || '|' || cast(linenumber as varchar)))) as varchar) as lineitem_hk,
+    cast(to_hex(md5(to_utf8(cast(suppkey as varchar)))) as varchar) as supplier_hk,
+    current_timestamp as load_date,
+    'tpch.tiny.lineitem' as record_source
+from tpch.tiny.lineitem;
 
--- LINK_CUSTOMER_NATION
-INSERT INTO memory.dds.link_customer_nation
-SELECT DISTINCT
-    CAST(TO_HEX(MD5(TO_UTF8(
-        CAST(c.custkey AS VARCHAR) || '|' || CAST(c.nationkey AS VARCHAR)
-    ))) AS VARCHAR) AS customer_nation_hk,
-    CAST(TO_HEX(MD5(TO_UTF8(CAST(c.custkey AS VARCHAR)))) AS VARCHAR) AS customer_hk,
-    CAST(TO_HEX(MD5(TO_UTF8(CAST(c.nationkey AS VARCHAR)))) AS VARCHAR) AS nation_hk,
-    CURRENT_TIMESTAMP AS load_date,
-    'tpch.tiny.customer' AS record_source
-FROM tpch.tiny.customer c;
+-- L_PARTSUPP
+insert into memory.dds.link_part_supplier
+select distinct
+    cast(to_hex(md5(to_utf8(
+        cast(to_hex(md5(to_utf8(cast(partkey as varchar)))) as varchar) || '|' ||
+        cast(to_hex(md5(to_utf8(cast(suppkey as varchar)))) as varchar)
+    ))) as varchar) as part_supplier_hk,
+    cast(to_hex(md5(to_utf8(cast(partkey as varchar)))) as varchar) as part_hk,
+    cast(to_hex(md5(to_utf8(cast(suppkey as varchar)))) as varchar) as supplier_hk,
+    cast(to_hex(md5(to_utf8(cast(partkey as varchar) || '|' || cast(suppkey as varchar)))) as varchar) as partsupp_hk,
+    current_timestamp as load_date,
+    'tpch.tiny.partsupp' as record_source
+from tpch.tiny.partsupp;
 
--- LINK_SUPPLIER_NATION
-INSERT INTO memory.dds.link_supplier_nation
-SELECT DISTINCT
-    CAST(TO_HEX(MD5(TO_UTF8(
-        CAST(s.suppkey AS VARCHAR) || '|' || CAST(s.nationkey AS VARCHAR)
-    ))) AS VARCHAR) AS supplier_nation_hk,
-    CAST(TO_HEX(MD5(TO_UTF8(CAST(s.suppkey AS VARCHAR)))) AS VARCHAR) AS supplier_hk,
-    CAST(TO_HEX(MD5(TO_UTF8(CAST(s.nationkey AS VARCHAR)))) AS VARCHAR) AS nation_hk,
-    CURRENT_TIMESTAMP AS load_date,
-    'tpch.tiny.supplier' AS record_source
-FROM tpch.tiny.supplier s;
+-- L_CUSTOMER_NATION
+insert into memory.dds.link_customer_nation
+select distinct
+    cast(to_hex(md5(to_utf8(
+        cast(to_hex(md5(to_utf8(cast(custkey as varchar)))) as varchar) || '|' ||
+        cast(to_hex(md5(to_utf8(cast(nationkey as varchar)))) as varchar)
+    ))) as varchar) as customer_nation_hk,
+    cast(to_hex(md5(to_utf8(cast(custkey as varchar)))) as varchar) as customer_hk,
+    cast(to_hex(md5(to_utf8(cast(nationkey as varchar)))) as varchar) as nation_hk,
+    current_timestamp as load_date,
+    'tpch.tiny.customer' as record_source
+from tpch.tiny.customer;
 
--- LINK_NATION_REGION
-INSERT INTO memory.dds.link_nation_region
-SELECT DISTINCT
-    CAST(TO_HEX(MD5(TO_UTF8(
-        CAST(n.nationkey AS VARCHAR) || '|' || CAST(n.regionkey AS VARCHAR)
-    ))) AS VARCHAR) AS nation_region_hk,
-    CAST(TO_HEX(MD5(TO_UTF8(CAST(n.nationkey AS VARCHAR)))) AS VARCHAR) AS nation_hk,
-    CAST(TO_HEX(MD5(TO_UTF8(CAST(n.regionkey AS VARCHAR)))) AS VARCHAR) AS region_hk,
-    CURRENT_TIMESTAMP AS load_date,
-    'tpch.tiny.nation' AS record_source
-FROM tpch.tiny.nation n;
+-- L_SPPLIER_NATION
+insert into memory.dds.link_supplier_nation
+select distinct
+    cast(to_hex(md5(to_utf8(
+        cast(to_hex(md5(to_utf8(cast(suppkey as varchar)))) as varchar) || '|' ||
+        cast(to_hex(md5(to_utf8(cast(nationkey as varchar)))) as varchar)
+    ))) as varchar) as supplier_nation_hk,
+    cast(to_hex(md5(to_utf8(cast(suppkey as varchar)))) as varchar) as supplier_hk,
+    cast(to_hex(md5(to_utf8(cast(nationkey as varchar)))) as varchar) as nation_hk,
+    current_timestamp as load_date,
+    'tpch.tiny.supplier' as record_source
+from tpch.tiny.supplier;
 
--- SATELLITES (порядок полей: *_hk, load_date, hash_diff, record_source, ...)
+-- L_NATION_REGION
+insert into memory.dds.link_nation_region
+select distinct
+    cast(to_hex(md5(to_utf8(
+        cast(to_hex(md5(to_utf8(cast(nationkey as varchar)))) as varchar) || '|' ||
+        cast(to_hex(md5(to_utf8(cast(regionkey as varchar)))) as varchar)
+    ))) as varchar) as nation_region_hk,
+    cast(to_hex(md5(to_utf8(cast(nationkey as varchar)))) as varchar) as nation_hk,
+    cast(to_hex(md5(to_utf8(cast(regionkey as varchar)))) as varchar) as region_hk,
+    current_timestamp as load_date,
+    'tpch.tiny.nation' as record_source
+from tpch.tiny.nation;
 
--- SAT_CUSTOMER
-INSERT INTO memory.dds.sat_customer
-SELECT
-    CAST(TO_HEX(MD5(TO_UTF8(CAST(custkey AS VARCHAR)))) AS VARCHAR) AS customer_hk,
-    CURRENT_TIMESTAMP AS load_date,
-    CAST(TO_HEX(MD5(TO_UTF8(
-        COALESCE(name, '') || '|' ||
-        COALESCE(address, '') || '|' ||
-        COALESCE(phone, '') || '|' ||
-        COALESCE(CAST(acctbal AS VARCHAR), '') || '|' ||
-        COALESCE(mktsegment, '') || '|' ||
-        COALESCE(comment, '')
-    ))) AS VARCHAR) AS hash_diff,
-    'tpch.tiny.customer' AS record_source,
+-- Satellites
+
+-- S_CUSTOMER
+insert into memory.dds.sat_customer
+select
+    cast(to_hex(md5(to_utf8(cast(custkey as varchar)))) as varchar) as customer_hk,
+    current_timestamp as load_date,
+    'tpch.tiny.customer' as record_source,
+    cast(to_hex(md5(to_utf8(
+        coalesce(name, '') || '|' ||
+        coalesce(address, '') || '|' ||
+        coalesce(phone, '') || '|' ||
+        coalesce(cast(acctbal as varchar), '') || '|' ||
+        coalesce(mktsegment, '') || '|' ||
+        coalesce(comment, '')
+    ))) as varchar) as hash_diff,
     name,
     address,
     phone,
     acctbal,
     mktsegment,
     comment
-FROM tpch.tiny.customer;
+from tpch.tiny.customer;
 
--- SAT_ORDER
-INSERT INTO memory.dds.sat_order
-SELECT
-    CAST(TO_HEX(MD5(TO_UTF8(CAST(orderkey AS VARCHAR)))) AS VARCHAR) AS order_hk,
-    CURRENT_TIMESTAMP AS load_date,
-    CAST(TO_HEX(MD5(TO_UTF8(
-        COALESCE(orderstatus, '') || '|' ||
-        COALESCE(CAST(totalprice AS VARCHAR), '') || '|' ||
-        COALESCE(CAST(orderdate AS VARCHAR), '') || '|' ||
-        COALESCE(orderpriority, '') || '|' ||
-        COALESCE(clerk, '') || '|' ||
-        COALESCE(CAST(shippriority AS VARCHAR), '') || '|' ||
-        COALESCE(comment, '')
-    ))) AS VARCHAR) AS hash_diff,
-    'tpch.tiny.orders' AS record_source,
-    orderstatus,
-    totalprice,
-    orderdate,
-    orderpriority,
+-- S_ORDER
+insert into memory.dds.sat_order
+select
+    cast(to_hex(md5(to_utf8(cast(orderkey as varchar)))) as varchar) as order_hk,
+    current_timestamp as load_date,
+    'tpch.tiny.orders' as record_source,
+    cast(to_hex(md5(to_utf8(
+        coalesce(orderstatus, '') || '|' ||
+        coalesce(cast(totalprice as varchar), '') || '|' ||
+        coalesce(cast(orderdate as varchar), '') || '|' ||
+        coalesce(orderpriority, '') || '|' ||
+        coalesce(clerk, '') || '|' ||
+        coalesce(cast(shippriority as varchar), '') || '|' ||
+        coalesce(comment, '')
+    ))) as varchar) as hash_diff,
+    orderstatus as order_status,
+    totalprice as total_price,
+    orderdate as order_date,
+    orderpriority as order_priority,
     clerk,
-    shippriority,
+    shippriority as ship_priority,
     comment
-FROM tpch.tiny.orders;
+from tpch.tiny.orders;
 
--- SAT_PART
-INSERT INTO memory.dds.sat_part
-SELECT
-    CAST(TO_HEX(MD5(TO_UTF8(CAST(partkey AS VARCHAR)))) AS VARCHAR) AS part_hk,
-    CURRENT_TIMESTAMP AS load_date,
-    CAST(TO_HEX(MD5(TO_UTF8(
-        COALESCE(name, '') || '|' ||
-        COALESCE(mfgr, '') || '|' ||
-        COALESCE(brand, '') || '|' ||
-        COALESCE(type, '') || '|' ||
-        COALESCE(CAST(size AS VARCHAR), '') || '|' ||
-        COALESCE(container, '') || '|' ||
-        COALESCE(CAST(retailprice AS VARCHAR), '') || '|' ||
-        COALESCE(comment, '')
-    ))) AS VARCHAR) AS hash_diff,
-    'tpch.tiny.part' AS record_source,
+-- S_PART
+insert into memory.dds.sat_part
+select
+    cast(to_hex(md5(to_utf8(cast(partkey as varchar)))) as varchar) as part_hk,
+    current_timestamp as load_date,
+    'tpch.tiny.part' as record_source,
+    cast(to_hex(md5(to_utf8(
+        coalesce(name, '') || '|' ||
+        coalesce(mfgr, '') || '|' ||
+        coalesce(brand, '') || '|' ||
+        coalesce(type, '') || '|' ||
+        coalesce(cast(size as varchar), '') || '|' ||
+        coalesce(container, '') || '|' ||
+        coalesce(cast(retailprice as varchar), '') || '|' ||
+        coalesce(comment, '')
+    ))) as varchar) as hash_diff,
     name,
     mfgr,
     brand,
     type,
     size,
     container,
-    retailprice,
+    retailprice as retail_price,
     comment
-FROM tpch.tiny.part;
+from tpch.tiny.part;
 
--- SAT_SUPPLIER
-INSERT INTO memory.dds.sat_supplier
-SELECT
-    CAST(TO_HEX(MD5(TO_UTF8(CAST(suppkey AS VARCHAR)))) AS VARCHAR) AS supplier_hk,
-    CURRENT_TIMESTAMP AS load_date,
-    CAST(TO_HEX(MD5(TO_UTF8(
-        COALESCE(name, '') || '|' ||
-        COALESCE(address, '') || '|' ||
-        COALESCE(phone, '') || '|' ||
-        COALESCE(CAST(acctbal AS VARCHAR), '') || '|' ||
-        COALESCE(comment, '')
-    ))) AS VARCHAR) AS hash_diff,
-    'tpch.tiny.supplier' AS record_source,
+-- S_SUPPLIER
+insert into memory.dds.sat_supplier
+select
+    cast(to_hex(md5(to_utf8(cast(suppkey as varchar)))) as varchar) as supplier_hk,
+    current_timestamp as load_date,
+    'tpch.tiny.supplier' as record_source,
+    cast(to_hex(md5(to_utf8(
+        coalesce(name, '') || '|' ||
+        coalesce(address, '') || '|' ||
+        coalesce(phone, '') || '|' ||
+        coalesce(cast(acctbal as varchar), '') || '|' ||
+        coalesce(comment, '')
+    ))) as varchar) as hash_diff,
     name,
     address,
     phone,
     acctbal,
     comment
-FROM tpch.tiny.supplier;
+from tpch.tiny.supplier;
 
--- SAT_NATION
-INSERT INTO memory.dds.sat_nation
-SELECT
-    CAST(TO_HEX(MD5(TO_UTF8(CAST(nationkey AS VARCHAR)))) AS VARCHAR) AS nation_hk,
-    CURRENT_TIMESTAMP AS load_date,
-    CAST(TO_HEX(MD5(TO_UTF8(
-        COALESCE(name, '') || '|' ||
-        COALESCE(comment, '')
-    ))) AS VARCHAR) AS hash_diff,
-    'tpch.tiny.nation' AS record_source,
-    name,
-    comment
-FROM tpch.tiny.nation;
-
--- SAT_REGION
-INSERT INTO memory.dds.sat_region
-SELECT
-    CAST(TO_HEX(MD5(TO_UTF8(CAST(regionkey AS VARCHAR)))) AS VARCHAR) AS region_hk,
-    CURRENT_TIMESTAMP AS load_date,
-    CAST(TO_HEX(MD5(TO_UTF8(
-        COALESCE(name, '') || '|' ||
-        COALESCE(comment, '')
-    ))) AS VARCHAR) AS hash_diff,
-    'tpch.tiny.region' AS record_source,
-    name,
-    comment
-FROM tpch.tiny.region;
-
--- SAT_LINEITEM
-INSERT INTO memory.dds.sat_lineitem
-SELECT
-    CAST(TO_HEX(MD5(TO_UTF8(CAST(orderkey AS VARCHAR) || '|' || CAST(linenumber AS VARCHAR)))) AS VARCHAR) AS lineitem_hk,
-    CURRENT_TIMESTAMP AS load_date,
-    CAST(TO_HEX(MD5(TO_UTF8(
-        COALESCE(CAST(quantity AS VARCHAR), '') || '|' ||
-        COALESCE(CAST(extendedprice AS VARCHAR), '') || '|' ||
-        COALESCE(CAST(discount AS VARCHAR), '') || '|' ||
-        COALESCE(CAST(tax AS VARCHAR), '') || '|' ||
-        COALESCE(returnflag, '') || '|' ||
-        COALESCE(linestatus, '') || '|' ||
-        COALESCE(CAST(shipdate AS VARCHAR), '') || '|' ||
-        COALESCE(CAST(commitdate AS VARCHAR), '') || '|' ||
-        COALESCE(CAST(receiptdate AS VARCHAR), '') || '|' ||
-        COALESCE(shipinstruct, '') || '|' ||
-        COALESCE(shipmode, '') || '|' ||
-        COALESCE(comment, '')
-    ))) AS VARCHAR) AS hash_diff,
-    'tpch.tiny.lineitem' AS record_source,
-    quantity,
-    extendedprice,
-    discount,
-    tax,
-    returnflag,
-    linestatus,
-    shipdate,
-    commitdate,
-    receiptdate,
-    shipinstruct,
-    shipmode,
-    comment
-FROM tpch.tiny.lineitem;
-
--- SAT_PARTSUPP
-INSERT INTO memory.dds.sat_partsupp
-SELECT
-    CAST(TO_HEX(MD5(TO_UTF8(CAST(partkey AS VARCHAR) || '|' || CAST(suppkey AS VARCHAR)))) AS VARCHAR) AS partsupp_hk,
-    CURRENT_TIMESTAMP AS load_date,
-    CAST(TO_HEX(MD5(TO_UTF8(
-        COALESCE(CAST(availqty AS VARCHAR), '') || '|' ||
-        COALESCE(CAST(supplycost AS VARCHAR), '') || '|' ||
-        COALESCE(comment, '')
-    ))) AS VARCHAR) AS hash_diff,
-    'tpch.tiny.partsupp' AS record_source,
+-- S_PARTSUPP
+insert into memory.dds.sat_partsupp
+select
+    cast(to_hex(md5(to_utf8(cast(partkey as varchar) || '|' || cast(suppkey as varchar)))) as varchar) as partsupp_hk,
+    current_timestamp as load_date,
+    'tpch.tiny.partsupp' as record_source,
+    cast(to_hex(md5(to_utf8(
+        coalesce(cast(availqty as varchar), '') || '|' ||
+        coalesce(cast(supplycost as varchar), '') || '|' ||
+        coalesce(comment, '')
+    ))) as varchar) as hash_diff,
     availqty,
     supplycost,
     comment
-FROM tpch.tiny.partsupp;
+from tpch.tiny.partsupp;
+
+-- S_LINEITEM
+insert into memory.dds.sat_lineitem
+select
+    cast(to_hex(md5(to_utf8(cast(orderkey as varchar) || '|' || cast(linenumber as varchar)))) as varchar) as lineitem_hk,
+    current_timestamp as load_date,
+    'tpch.tiny.lineitem' as record_source,
+    cast(to_hex(md5(to_utf8(
+        coalesce(cast(quantity as varchar), '') || '|' ||
+        coalesce(cast(extendedprice as varchar), '') || '|' ||
+        coalesce(cast(discount as varchar), '') || '|' ||
+        coalesce(cast(tax as varchar), '') || '|' ||
+        coalesce(returnflag, '') || '|' ||
+        coalesce(linestatus, '') || '|' ||
+        coalesce(cast(shipdate as varchar), '') || '|' ||
+        coalesce(cast(commitdate as varchar), '') || '|' ||
+        coalesce(cast(receiptdate as varchar), '') || '|' ||
+        coalesce(shipinstruct, '') || '|' ||
+        coalesce(shipmode, '') || '|' ||
+        coalesce(comment, '')
+    ))) as varchar) as hash_diff,
+    quantity,
+    extendedprice as extended_price,
+    discount,
+    tax,
+    returnflag as return_flag,
+    linestatus as line_status,
+    shipdate as ship_date,
+    commitdate as commit_date,
+    receiptdate as receipt_date,
+    shipinstruct as ship_instruct,
+    shipmode as ship_mode,
+    comment
+from tpch.tiny.lineitem;
+
+-- S_NATION
+insert into memory.dds.sat_nation
+select
+    cast(to_hex(md5(to_utf8(cast(nationkey as varchar)))) as varchar) as nation_hk,
+    current_timestamp as load_date,
+    'tpch.tiny.nation' as record_source,
+    cast(to_hex(md5(to_utf8(
+        coalesce(name, '') || '|' ||
+        coalesce(comment, '')
+    ))) as varchar) as hash_diff,
+    name,
+    comment
+from tpch.tiny.nation;
+
+-- S_REGION
+insert into memory.dds.sat_region
+select
+    cast(to_hex(md5(to_utf8(cast(regionkey as varchar)))) as varchar) as region_hk,
+    current_timestamp as load_date,
+    'tpch.tiny.region' as record_source,
+    cast(to_hex(md5(to_utf8(
+        coalesce(name, '') || '|' ||
+        coalesce(comment, '')
+    ))) as varchar) as hash_diff,
+    name,
+    comment
+from tpch.tiny.region;

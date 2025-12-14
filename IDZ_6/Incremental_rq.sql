@@ -1,216 +1,197 @@
--- HUB_ORDER
-INSERT INTO memory.dds.hub_order
-SELECT DISTINCT
-    CAST(TO_HEX(MD5(TO_UTF8(CAST(orderkey AS VARCHAR)))) AS VARCHAR) AS order_hk,
-    orderkey,
-    CURRENT_TIMESTAMP AS load_date,
-    'tpch.tiny.orders' AS record_source
-FROM tpch.tiny.orders
-WHERE orderdate = DATE 'LOAD_DATE'
-  AND CAST(TO_HEX(MD5(TO_UTF8(CAST(orderkey AS VARCHAR)))) AS VARCHAR)
-      NOT IN (SELECT order_hk FROM memory.dds.hub_order);
+-- H_CUSTOMER
+insert into memory.dds.hub_order
+select distinct
+    cast(to_hex(md5(to_utf8(cast(orderkey as varchar)))) as varchar) as order_hk,
+    orderkey as order_key,
+    current_timestamp as load_date,
+    'tpch.tiny.orders' as record_source
+from tpch.tiny.orders
+where orderdate = date 'LOAD_DATE'
+and cast(to_hex(md5(to_utf8(cast(orderkey as varchar)))) as varchar) not in (
+    select order_hk from memory.dds.hub_order
+);
 
--- HUB_CUSTOMER
-INSERT INTO memory.dds.hub_customer
-SELECT DISTINCT
-    CAST(TO_HEX(MD5(TO_UTF8(CAST(custkey AS VARCHAR)))) AS VARCHAR) AS customer_hk,
-    custkey,
-    CURRENT_TIMESTAMP AS load_date,
-    'tpch.tiny.orders' AS record_source  -- источник — orders, т.к. инкремент по заказам
-FROM tpch.tiny.orders o
-WHERE o.orderdate = DATE 'LOAD_DATE'
-  AND CAST(TO_HEX(MD5(TO_UTF8(CAST(custkey AS VARCHAR)))) AS VARCHAR)
-      NOT IN (SELECT customer_hk FROM memory.dds.hub_customer);
+-- L_CUSTOMER_ORDER
+insert into memory.dds.link_customer_order
+select distinct
+    cast(to_hex(md5(to_utf8(
+        cast(to_hex(md5(to_utf8(cast(custkey as varchar)))) as varchar) || '|' ||
+        cast(to_hex(md5(to_utf8(cast(orderkey as varchar)))) as varchar)
+    ))) as varchar) as customer_order_hk,
+    cast(to_hex(md5(to_utf8(cast(custkey as varchar)))) as varchar) as customer_hk,
+    cast(to_hex(md5(to_utf8(cast(orderkey as varchar)))) as varchar) as order_hk,
+    current_timestamp as load_date,
+    'tpch.tiny.orders' as record_source
+from tpch.tiny.orders
+where orderdate = date 'LOAD_DATE'
+and cast(to_hex(md5(to_utf8(
+    cast(to_hex(md5(to_utf8(cast(custkey as varchar)))) as varchar) || '|' ||
+    cast(to_hex(md5(to_utf8(cast(orderkey as varchar)))) as varchar)
+))) as varchar) not in (
+    select customer_order_hk from memory.dds.link_customer_order
+);
 
--- LINK_ORDER_CUSTOMER
-INSERT INTO memory.dds.link_order_customer
-SELECT DISTINCT
-    CAST(TO_HEX(MD5(TO_UTF8(
-        CAST(o.custkey AS VARCHAR) || '|' || CAST(o.orderkey AS VARCHAR)
-    ))) AS VARCHAR) AS order_customer_hk,
-    CAST(TO_HEX(MD5(TO_UTF8(CAST(o.custkey AS VARCHAR)))) AS VARCHAR) AS customer_hk,
-    CAST(TO_HEX(MD5(TO_UTF8(CAST(o.orderkey AS VARCHAR)))) AS VARCHAR) AS order_hk,
-    CURRENT_TIMESTAMP AS load_date,
-    'tpch.tiny.orders' AS record_source
-FROM tpch.tiny.orders o
-WHERE o.orderdate = DATE 'LOAD_DATE'
-  AND CAST(TO_HEX(MD5(TO_UTF8(
-        CAST(o.custkey AS VARCHAR) || '|' || CAST(o.orderkey AS VARCHAR)
-    ))) AS VARCHAR)
-      NOT IN (SELECT order_customer_hk FROM memory.dds.link_order_customer);
-
--- SAT_ORDER
-INSERT INTO memory.dds.sat_order
-SELECT
-    CAST(TO_HEX(MD5(TO_UTF8(CAST(o.orderkey AS VARCHAR)))) AS VARCHAR) AS order_hk,
-    CURRENT_TIMESTAMP AS load_date,
-    CAST(TO_HEX(MD5(TO_UTF8(
-        COALESCE(o.orderstatus, '') || '|' ||
-        COALESCE(CAST(o.totalprice AS VARCHAR), '') || '|' ||
-        COALESCE(CAST(o.orderdate AS VARCHAR), '') || '|' ||
-        COALESCE(o.orderpriority, '') || '|' ||
-        COALESCE(o.clerk, '') || '|' ||
-        COALESCE(CAST(o.shippriority AS VARCHAR), '') || '|' ||
-        COALESCE(o.comment, '')
-    ))) AS VARCHAR) AS hash_diff,
-    'tpch.tiny.orders' AS record_source,
-    o.orderstatus,
-    o.totalprice,
-    o.orderdate,
-    o.orderpriority,
+-- S_ORDER
+insert into memory.dds.sat_order
+select
+    cast(to_hex(md5(to_utf8(cast(o.orderkey as varchar)))) as varchar) as order_hk,
+    current_timestamp as load_date,
+    'tpch.tiny.orders' as record_source,
+    cast(to_hex(md5(to_utf8(
+        coalesce(o.orderstatus, '') || '|' ||
+        coalesce(cast(o.totalprice as varchar), '') || '|' ||
+        coalesce(cast(o.orderdate as varchar), '') || '|' ||
+        coalesce(o.orderpriority, '') || '|' ||
+        coalesce(o.clerk, '') || '|' ||
+        coalesce(cast(o.shippriority as varchar), '') || '|' ||
+        coalesce(o.comment, '')
+    ))) as varchar) as hash_diff,
+    o.orderstatus as order_status,
+    o.totalprice as total_price,
+    o.orderdate as order_date,
+    o.orderpriority as order_priority,
     o.clerk,
-    o.shippriority,
+    o.shippriority as ship_priority,
     o.comment
-FROM tpch.tiny.orders o
-WHERE o.orderdate = DATE 'LOAD_DATE'
-  AND NOT EXISTS (
-      SELECT 1
-      FROM memory.dds.sat_order s
-      WHERE s.order_hk = CAST(TO_HEX(MD5(TO_UTF8(CAST(o.orderkey AS VARCHAR)))) AS VARCHAR)
-        AND s.hash_diff = CAST(TO_HEX(MD5(TO_UTF8(
-            COALESCE(o.orderstatus, '') || '|' ||
-            COALESCE(CAST(o.totalprice AS VARCHAR), '') || '|' ||
-            COALESCE(CAST(o.orderdate AS VARCHAR), '') || '|' ||
-            COALESCE(o.orderpriority, '') || '|' ||
-            COALESCE(o.clerk, '') || '|' ||
-            COALESCE(CAST(o.shippriority AS VARCHAR), '') || '|' ||
-            COALESCE(o.comment, '')
-        ))) AS VARCHAR)
-  );
+from tpch.tiny.orders o
+where o.orderdate = date 'LOAD_DATE'
+and cast(to_hex(md5(to_utf8(
+    coalesce(o.orderstatus, '') || '|' ||
+    coalesce(cast(o.totalprice as varchar), '') || '|' ||
+    coalesce(cast(o.orderdate as varchar), '') || '|' ||
+    coalesce(o.orderpriority, '') || '|' ||
+    coalesce(o.clerk, '') || '|' ||
+    coalesce(cast(o.shippriority as varchar), '') || '|' ||
+    coalesce(o.comment, '')
+))) as varchar) not in (
+    select hash_diff 
+    from memory.dds.sat_order s
+    where s.order_hk = cast(to_hex(md5(to_utf8(cast(o.orderkey as varchar)))) as varchar)
+);
 
--- HUB_LINEITEM
-INSERT INTO memory.dds.hub_lineitem
-SELECT DISTINCT
-    CAST(TO_HEX(MD5(TO_UTF8(CAST(orderkey AS VARCHAR) || '|' || CAST(linenumber AS VARCHAR)))) AS VARCHAR) AS lineitem_hk,
-    orderkey,
-    linenumber,
-    CURRENT_TIMESTAMP AS load_date,
-    'tpch.tiny.lineitem' AS record_source
-FROM tpch.tiny.lineitem
-WHERE shipdate = DATE 'LOAD_DATE'
-  AND CAST(TO_HEX(MD5(TO_UTF8(CAST(orderkey AS VARCHAR) || '|' || CAST(linenumber AS VARCHAR)))) AS VARCHAR)
-      NOT IN (SELECT lineitem_hk FROM memory.dds.hub_lineitem);
+-- H_LINEITEM
+insert into memory.dds.hub_lineitem
+select distinct
+    cast(to_hex(md5(to_utf8(cast(orderkey as varchar) || '|' || cast(linenumber as varchar)))) as varchar) as lineitem_hk,
+    orderkey as order_key,
+    linenumber as line_number,
+    current_timestamp as load_date,
+    'tpch.tiny.lineitem' as record_source
+from tpch.tiny.lineitem
+where shipdate = date 'LOAD_DATE'
+and cast(to_hex(md5(to_utf8(cast(orderkey as varchar) || '|' || cast(linenumber as varchar)))) as varchar) not in (
+    select lineitem_hk from memory.dds.hub_lineitem
+);
 
--- HUB_PARTSUPP
-INSERT INTO memory.dds.hub_partsupp
-SELECT DISTINCT
-    CAST(TO_HEX(MD5(TO_UTF8(CAST(partkey AS VARCHAR) || '|' || CAST(suppkey AS VARCHAR)))) AS VARCHAR) AS partsupp_hk,
-    partkey,
-    suppkey,
-    CURRENT_TIMESTAMP AS load_date,
-    'tpch.tiny.lineitem' AS record_source
-FROM tpch.tiny.lineitem li
-WHERE li.shipdate = DATE 'LOAD_DATE'
-  AND CAST(TO_HEX(MD5(TO_UTF8(CAST(partkey AS VARCHAR) || '|' || CAST(suppkey AS VARCHAR)))) AS VARCHAR)
-      NOT IN (SELECT partsupp_hk FROM memory.dds.hub_partsupp);
+-- L_ORDER_LINEITEM
+insert into memory.dds.link_order_lineitem
+select distinct
+    cast(to_hex(md5(to_utf8(
+        cast(to_hex(md5(to_utf8(cast(orderkey as varchar)))) as varchar) || '|' ||
+        cast(to_hex(md5(to_utf8(cast(orderkey as varchar) || '|' || cast(linenumber as varchar)))) as varchar)
+    ))) as varchar) as order_lineitem_hk,
+    cast(to_hex(md5(to_utf8(cast(orderkey as varchar)))) as varchar) as order_hk,
+    cast(to_hex(md5(to_utf8(cast(orderkey as varchar) || '|' || cast(linenumber as varchar)))) as varchar) as lineitem_hk,
+    current_timestamp as load_date,
+    'tpch.tiny.lineitem' as record_source
+from tpch.tiny.lineitem
+where shipdate = date 'LOAD_DATE'
+and cast(to_hex(md5(to_utf8(
+    cast(to_hex(md5(to_utf8(cast(orderkey as varchar)))) as varchar) || '|' ||
+    cast(to_hex(md5(to_utf8(cast(orderkey as varchar) || '|' || cast(linenumber as varchar)))) as varchar)
+))) as varchar) not in (
+    select order_lineitem_hk from memory.dds.link_order_lineitem
+);
 
--- LINK_LINEITEM_PARTSUPP
-INSERT INTO memory.dds.link_lineitem_partsupp
-SELECT DISTINCT
-    CAST(TO_HEX(MD5(TO_UTF8(
-        CAST(li.orderkey AS VARCHAR) || '|' || CAST(li.linenumber AS VARCHAR) || '|' ||
-        CAST(li.partkey AS VARCHAR) || '|' || CAST(li.suppkey AS VARCHAR)
-    ))) AS VARCHAR) AS lineitem_partsupp_hk,
-    CAST(TO_HEX(MD5(TO_UTF8(CAST(li.orderkey AS VARCHAR) || '|' || CAST(li.linenumber AS VARCHAR)))) AS VARCHAR) AS lineitem_hk,
-    CAST(TO_HEX(MD5(TO_UTF8(CAST(li.partkey AS VARCHAR) || '|' || CAST(li.suppkey AS VARCHAR)))) AS VARCHAR) AS partsupp_hk,
-    CURRENT_TIMESTAMP AS load_date,
-    'tpch.tiny.lineitem' AS record_source
-FROM tpch.tiny.lineitem li
-WHERE li.shipdate = DATE 'LOAD_DATE'
-  AND CAST(TO_HEX(MD5(TO_UTF8(
-        CAST(li.orderkey AS VARCHAR) || '|' || CAST(li.linenumber AS VARCHAR) || '|' ||
-        CAST(li.partkey AS VARCHAR) || '|' || CAST(li.suppkey AS VARCHAR)
-    ))) AS VARCHAR)
-      NOT IN (SELECT lineitem_partsupp_hk FROM memory.dds.link_lineitem_partsupp);
+-- L_LINEITEM_PART
+insert into memory.dds.link_lineitem_part
+select distinct
+    cast(to_hex(md5(to_utf8(
+        cast(to_hex(md5(to_utf8(cast(orderkey as varchar) || '|' || cast(linenumber as varchar)))) as varchar) || '|' ||
+        cast(to_hex(md5(to_utf8(cast(partkey as varchar)))) as varchar)
+    ))) as varchar) as lineitem_part_hk,
+    cast(to_hex(md5(to_utf8(cast(orderkey as varchar) || '|' || cast(linenumber as varchar)))) as varchar) as lineitem_hk,
+    cast(to_hex(md5(to_utf8(cast(partkey as varchar)))) as varchar) as part_hk,
+    current_timestamp as load_date,
+    'tpch.tiny.lineitem' as record_source
+from tpch.tiny.lineitem
+where shipdate = date 'LOAD_DATE'
+and cast(to_hex(md5(to_utf8(
+    cast(to_hex(md5(to_utf8(cast(orderkey as varchar) || '|' || cast(linenumber as varchar)))) as varchar) || '|' ||
+    cast(to_hex(md5(to_utf8(cast(partkey as varchar)))) as varchar)
+))) as varchar) not in (
+    select lineitem_part_hk from memory.dds.link_lineitem_part
+);
 
--- LINK_PARTSUPP_PART
-INSERT INTO memory.dds.link_partsupp_part
-SELECT DISTINCT
-    CAST(TO_HEX(MD5(TO_UTF8(
-        CAST(ps.partkey AS VARCHAR) || '|' || CAST(ps.suppkey AS VARCHAR) || '|' ||
-        CAST(ps.partkey AS VARCHAR)
-    ))) AS VARCHAR) AS partsupp_part_hk,
-    CAST(TO_HEX(MD5(TO_UTF8(CAST(ps.partkey AS VARCHAR) || '|' || CAST(ps.suppkey AS VARCHAR)))) AS VARCHAR) AS partsupp_hk,
-    CAST(TO_HEX(MD5(TO_UTF8(CAST(ps.partkey AS VARCHAR)))) AS VARCHAR) AS part_hk,
-    CURRENT_TIMESTAMP AS load_date,
-    'tpch.tiny.lineitem' AS record_source
-FROM tpch.tiny.lineitem ps
-WHERE ps.shipdate = DATE 'LOAD_DATE'
-  AND CAST(TO_HEX(MD5(TO_UTF8(
-        CAST(ps.partkey AS VARCHAR) || '|' || CAST(ps.suppkey AS VARCHAR) || '|' ||
-        CAST(ps.partkey AS VARCHAR)
-    ))) AS VARCHAR)
-      NOT IN (SELECT partsupp_part_hk FROM memory.dds.link_partsupp_part);
+-- L_LINEITEM_SPPLIER
+insert into memory.dds.link_lineitem_supplier
+select distinct
+    cast(to_hex(md5(to_utf8(
+        cast(to_hex(md5(to_utf8(cast(orderkey as varchar) || '|' || cast(linenumber as varchar)))) as varchar) || '|' ||
+        cast(to_hex(md5(to_utf8(cast(suppkey as varchar)))) as varchar)
+    ))) as varchar) as lineitem_supplier_hk,
+    cast(to_hex(md5(to_utf8(cast(orderkey as varchar) || '|' || cast(linenumber as varchar)))) as varchar) as lineitem_hk,
+    cast(to_hex(md5(to_utf8(cast(suppkey as varchar)))) as varchar) as supplier_hk,
+    current_timestamp as load_date,
+    'tpch.tiny.lineitem' as record_source
+from tpch.tiny.lineitem
+where shipdate = date 'LOAD_DATE'
+and cast(to_hex(md5(to_utf8(
+    cast(to_hex(md5(to_utf8(cast(orderkey as varchar) || '|' || cast(linenumber as varchar)))) as varchar) || '|' ||
+    cast(to_hex(md5(to_utf8(cast(suppkey as varchar)))) as varchar)
+))) as varchar) not in (
+    select lineitem_supplier_hk from memory.dds.link_lineitem_supplier
+);
 
--- LINK_PARTSUPP_SUPPLIER
-INSERT INTO memory.dds.link_partsupp_supplier
-SELECT DISTINCT
-    CAST(TO_HEX(MD5(TO_UTF8(
-        CAST(ps.partkey AS VARCHAR) || '|' || CAST(ps.suppkey AS VARCHAR) || '|' ||
-        CAST(ps.suppkey AS VARCHAR)
-    ))) AS VARCHAR) AS partsupp_supplier_hk,
-    CAST(TO_HEX(MD5(TO_UTF8(CAST(ps.partkey AS VARCHAR) || '|' || CAST(ps.suppkey AS VARCHAR)))) AS VARCHAR) AS partsupp_hk,
-    CAST(TO_HEX(MD5(TO_UTF8(CAST(ps.suppkey AS VARCHAR)))) AS VARCHAR) AS supplier_hk,
-    CURRENT_TIMESTAMP AS load_date,
-    'tpch.tiny.lineitem' AS record_source
-FROM tpch.tiny.lineitem ps
-WHERE ps.shipdate = DATE 'LOAD_DATE'
-  AND CAST(TO_HEX(MD5(TO_UTF8(
-        CAST(ps.partkey AS VARCHAR) || '|' || CAST(ps.suppkey AS VARCHAR) || '|' ||
-        CAST(ps.suppkey AS VARCHAR)
-    ))) AS VARCHAR)
-      NOT IN (SELECT partsupp_supplier_hk FROM memory.dds.link_partsupp_supplier);
-
--- SAT_LINEITEM
-INSERT INTO memory.dds.sat_lineitem
-SELECT
-    CAST(TO_HEX(MD5(TO_UTF8(CAST(li.orderkey AS VARCHAR) || '|' || CAST(li.linenumber AS VARCHAR)))) AS VARCHAR) AS lineitem_hk,
-    CURRENT_TIMESTAMP AS load_date,
-    CAST(TO_HEX(MD5(TO_UTF8(
-        COALESCE(CAST(li.quantity AS VARCHAR), '') || '|' ||
-        COALESCE(CAST(li.extendedprice AS VARCHAR), '') || '|' ||
-        COALESCE(CAST(li.discount AS VARCHAR), '') || '|' ||
-        COALESCE(CAST(li.tax AS VARCHAR), '') || '|' ||
-        COALESCE(li.returnflag, '') || '|' ||
-        COALESCE(li.linestatus, '') || '|' ||
-        COALESCE(CAST(li.shipdate AS VARCHAR), '') || '|' ||
-        COALESCE(CAST(li.commitdate AS VARCHAR), '') || '|' ||
-        COALESCE(CAST(li.receiptdate AS VARCHAR), '') || '|' ||
-        COALESCE(li.shipinstruct, '') || '|' ||
-        COALESCE(li.shipmode, '') || '|' ||
-        COALESCE(li.comment, '')
-    ))) AS VARCHAR) AS hash_diff,
-    'tpch.tiny.lineitem' AS record_source,
+-- S_LINEITEM
+insert into memory.dds.sat_lineitem
+select
+    cast(to_hex(md5(to_utf8(cast(li.orderkey as varchar) || '|' || cast(li.linenumber as varchar)))) as varchar) as lineitem_hk,
+    current_timestamp as load_date,
+    'tpch.tiny.lineitem' as record_source,
+    cast(to_hex(md5(to_utf8(
+        coalesce(cast(li.quantity as varchar), '') || '|' ||
+        coalesce(cast(li.extendedprice as varchar), '') || '|' ||
+        coalesce(cast(li.discount as varchar), '') || '|' ||
+        coalesce(cast(li.tax as varchar), '') || '|' ||
+        coalesce(li.returnflag, '') || '|' ||
+        coalesce(li.linestatus, '') || '|' ||
+        coalesce(cast(li.shipdate as varchar), '') || '|' ||
+        coalesce(cast(li.commitdate as varchar), '') || '|' ||
+        coalesce(cast(li.receiptdate as varchar), '') || '|' ||
+        coalesce(li.shipinstruct, '') || '|' ||
+        coalesce(li.shipmode, '') || '|' ||
+        coalesce(li.comment, '')
+    ))) as varchar) as hash_diff,
     li.quantity,
-    li.extendedprice,
+    li.extendedprice as extended_price,
     li.discount,
     li.tax,
-    li.returnflag,
-    li.linestatus,
-    li.shipdate,
-    li.commitdate,
-    li.receiptdate,
-    li.shipinstruct,
-    li.shipmode,
+    li.returnflag as return_flag,
+    li.linestatus as line_status,
+    li.shipdate as ship_date,
+    li.commitdate as commit_date,
+    li.receiptdate as receipt_date,
+    li.shipinstruct as ship_instruct,
+    li.shipmode as ship_mode,
     li.comment
-FROM tpch.tiny.lineitem li
-WHERE li.shipdate = DATE 'LOAD_DATE'
-  AND NOT EXISTS (
-      SELECT 1
-      FROM memory.dds.sat_lineitem s
-      WHERE s.lineitem_hk = CAST(TO_HEX(MD5(TO_UTF8(CAST(li.orderkey AS VARCHAR) || '|' || CAST(li.linenumber AS VARCHAR)))) AS VARCHAR)
-        AND s.hash_diff = CAST(TO_HEX(MD5(TO_UTF8(
-            COALESCE(CAST(li.quantity AS VARCHAR), '') || '|' ||
-            COALESCE(CAST(li.extendedprice AS VARCHAR), '') || '|' ||
-            COALESCE(CAST(li.discount AS VARCHAR), '') || '|' ||
-            COALESCE(CAST(li.tax AS VARCHAR), '') || '|' ||
-            COALESCE(li.returnflag, '') || '|' ||
-            COALESCE(li.linestatus, '') || '|' ||
-            COALESCE(CAST(li.shipdate AS VARCHAR), '') || '|' ||
-            COALESCE(CAST(li.commitdate AS VARCHAR), '') || '|' ||
-            COALESCE(CAST(li.receiptdate AS VARCHAR), '') || '|' ||
-            COALESCE(li.shipinstruct, '') || '|' ||
-            COALESCE(li.shipmode, '') || '|' ||
-            COALESCE(li.comment, '')
-        ))) AS VARCHAR)
-  );
+from tpch.tiny.lineitem li
+where li.shipdate = date 'LOAD_DATE'
+and cast(to_hex(md5(to_utf8(
+    coalesce(cast(li.quantity as varchar), '') || '|' ||
+    coalesce(cast(li.extendedprice as varchar), '') || '|' ||
+    coalesce(cast(li.discount as varchar), '') || '|' ||
+    coalesce(cast(li.tax as varchar), '') || '|' ||
+    coalesce(li.returnflag, '') || '|' ||
+    coalesce(li.linestatus, '') || '|' ||
+    coalesce(cast(li.shipdate as varchar), '') || '|' ||
+    coalesce(cast(li.commitdate as varchar), '') || '|' ||
+    coalesce(cast(li.receiptdate as varchar), '') || '|' ||
+    coalesce(li.shipinstruct, '') || '|' ||
+    coalesce(li.shipmode, '') || '|' ||
+    coalesce(li.comment, '')
+))) as varchar) not in (
+    select hash_diff 
+    from memory.dds.sat_lineitem s
+    where s.lineitem_hk = cast(to_hex(md5(to_utf8(cast(li.orderkey as varchar) || '|' || cast(li.linenumber as varchar)))) as varchar)
+);
