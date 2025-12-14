@@ -28,6 +28,7 @@ docker exec -it trino trino --catalog memory --execute "SHOW TABLES FR
 docker exec -i trino trino --catalog memory < Insert_rq.sql
 
 4. Инкрементальная загрузка за день
+
 🔹 Вариант A: за указанную дату
 chmod +x Incremental_rq.sh | ./Incremental_rq.sh 1997-10-10
 
@@ -37,8 +38,9 @@ chmod +x Incremental_rq.sh | ./Incremental_rq.sh
 ✅ Скрипт загружает:
 
 новые заказы (orderdate) и связанные сущности (customer, links, sat_order)
+
 новые позиции (shipdate) и связанные сущности (partsupp, links, sat_lineitem)
-— с дедупликацией и поддержкой SCD2 (через hash_diff).
+
 
 ## 📁 Структура файлов
 
